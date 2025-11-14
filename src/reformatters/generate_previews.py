@@ -48,12 +48,20 @@ def generate_previews(zarr_path: Path, output_dir: Path) -> dict:
     except KeyError:
         # Fallback: use isel if init_time is not indexed
         print("Warning: init_time not indexed, using positional selection")
-        if len(ds.init_time) == 1:
-            latest_ds = ds.isel(init_time=0)
+
+        # Check if init_time is a dimension (array) or scalar
+        if "init_time" in ds.dims:
+            # It's a dimension - use positional selection
+            init_time_size = ds.dims["init_time"]
+            if init_time_size == 1:
+                latest_ds = ds.isel(init_time=0)
+            else:
+                # Find the position of the latest init_time
+                latest_idx = int(ds.init_time.argmax().values)
+                latest_ds = ds.isel(init_time=latest_idx)
         else:
-            # Find the position of the latest init_time
-            latest_idx = int(ds.init_time.argmax().values)
-            latest_ds = ds.isel(init_time=latest_idx)
+            # init_time is scalar/not a dimension - dataset already has single time
+            latest_ds = ds
 
     print(f"Latest forecast: {latest_init}")
 
