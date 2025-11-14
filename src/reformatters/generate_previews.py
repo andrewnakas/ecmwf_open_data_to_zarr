@@ -115,9 +115,38 @@ def generate_previews(zarr_path: Path, output_dir: Path) -> dict:
     return metadata
 
 
+def safe_select_lead_time(data_array: xr.DataArray, lead_time_hours: int) -> xr.DataArray:
+    """Safely select data by lead time, handling indexed and non-indexed cases.
+
+    Args:
+        data_array: The data array to select from
+        lead_time_hours: Lead time in hours
+
+    Returns:
+        Data array at the specified lead time
+    """
+    import pandas as pd
+
+    target_lead = pd.Timedelta(hours=lead_time_hours)
+
+    try:
+        # Try indexed selection first (preferred)
+        return data_array.sel(lead_time=target_lead)
+    except (KeyError, ValueError):
+        # Fallback: find nearest lead time and use positional selection
+        if "lead_time" in data_array.dims:
+            # Find the index of the closest lead time
+            lead_times = data_array.lead_time.values
+            idx = int(np.argmin(np.abs(lead_times - target_lead)))
+            return data_array.isel(lead_time=idx)
+        else:
+            # No lead_time dimension - return as is
+            return data_array
+
+
 def generate_temperature_map(ds: xr.Dataset, output_dir: Path, metadata: dict) -> None:
     """Generate global temperature map at 24h lead time."""
-    temp_24h = ds["temperature_2m"].sel(lead_time="24h") - 273.15  # Convert to Celsius
+    temp_24h = safe_select_lead_time(ds["temperature_2m"], 24) - 273.15  # Convert to Celsius
 
     if HAS_CARTOPY:
         fig, ax = plt.subplots(
@@ -164,8 +193,8 @@ def generate_temperature_map(ds: xr.Dataset, output_dir: Path, metadata: dict) -
 
 def generate_wind_map(ds: xr.Dataset, output_dir: Path, metadata: dict) -> None:
     """Generate global wind speed map at 24h lead time."""
-    u_wind = ds["wind_u_10m"].sel(lead_time="24h")
-    v_wind = ds["wind_v_10m"].sel(lead_time="24h")
+    u_wind = safe_select_lead_time(ds["wind_u_10m"], 24)
+    v_wind = safe_select_lead_time(ds["wind_v_10m"], 24)
     wind_speed = np.sqrt(u_wind**2 + v_wind**2)
 
     if HAS_CARTOPY:
@@ -213,7 +242,7 @@ def generate_wind_map(ds: xr.Dataset, output_dir: Path, metadata: dict) -> None:
 
 def generate_precipitation_map(ds: xr.Dataset, output_dir: Path, metadata: dict) -> None:
     """Generate precipitation map at 24h lead time."""
-    precip_24h = ds["total_precipitation"].sel(lead_time="24h") * 1000  # Convert m to mm
+    precip_24h = safe_select_lead_time(ds["total_precipitation"], 24) * 1000  # Convert m to mm
 
     if HAS_CARTOPY:
         fig, ax = plt.subplots(
@@ -300,7 +329,8 @@ def generate_city_forecasts(ds: xr.Dataset, output_dir: Path, metadata: dict) ->
     city_temps = {}
     for city_name, (lat, lon) in cities.items():
         city_data = ds.sel(latitude=lat, longitude=lon, method="nearest")
-        temp_24h = float(city_data["temperature_2m"].sel(lead_time="24h").values - 273.15)
+        temp_24h_data = safe_select_lead_time(city_data["temperature_2m"], 24)
+        temp_24h = float(temp_24h_data.values - 273.15)
         city_temps[city_name] = round(temp_24h, 1)
 
     metadata["city_temperatures_24h"] = city_temps

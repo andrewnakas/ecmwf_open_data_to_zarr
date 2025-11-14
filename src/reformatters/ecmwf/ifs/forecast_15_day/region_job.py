@@ -18,7 +18,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
     """
 
     # ECMWF parameter short names (GRIB parameter codes)
-    # Using only parameters definitely available in ECMWF Open Data
+    # Using only parameters available in ECMWF Open Data
     PARAMETERS = [
         "2t",  # 2m temperature
         "10u",  # 10m u-wind
@@ -26,8 +26,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         "tp",  # total precipitation
         "sp",  # surface pressure
         "msl",  # mean sea level pressure
-        "tcc",  # total cloud cover
-        "2d",  # 2m dewpoint temperature (proxy for humidity)
+        "2d",  # 2m dewpoint temperature (for humidity calculation)
     ]
 
     # Map GRIB parameter names to our variable names
@@ -38,7 +37,6 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         "tp": "total_precipitation",
         "sp": "surface_pressure",
         "msl": "mean_sea_level_pressure",
-        "tcc": "total_cloud_cover",
         "2d": "relative_humidity_2m",  # Will compute from dewpoint if needed
     }
 
@@ -46,6 +44,10 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         """Initialize ECMWF region job."""
         super().__init__(zarr_store, cache_dir)
         self.client = Client(source="ecmwf")
+
+        # Generate forecast step list for ECMWF Open Data (00/12 UTC runs)
+        # 0-144h every 3 hours, then 150-240h every 6 hours
+        self.forecast_steps = list(range(0, 145, 3)) + list(range(150, 241, 6))
 
     def generate_source_file_coords(
         self, start_time: datetime | None = None, end_time: datetime | None = None
@@ -60,7 +62,9 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             List of source file coordinates
         """
         # ECMWF runs at 00, 06, 12, 18 UTC
-        run_hours = [0, 6, 12, 18]
+        # But only 00/12 UTC runs have long-range forecasts (0-240h)
+        # 06/18 UTC runs only have 0-90h
+        run_hours = [0, 12]
 
         if start_time is None and end_time is None:
             # Operational mode: get latest AVAILABLE run
@@ -120,6 +124,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
 
         print(f"  Downloading forecast from {coord.init_time}")
         print(f"  Parameters: {', '.join(self.PARAMETERS)}")
+        print(f"  Forecast steps: {len(self.forecast_steps)} steps (0-240h)")
 
         try:
             # Try to download specific date/time first
@@ -128,6 +133,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
                 time=coord.init_time.hour,
                 type="fc",  # forecast
                 param=self.PARAMETERS,  # All parameters at once
+                step=self.forecast_steps,  # All forecast lead times
                 target=str(cache_file),
             )
 
@@ -145,6 +151,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
                     result = self.client.retrieve(
                         type="fc",
                         param=self.PARAMETERS,
+                        step=self.forecast_steps,  # All forecast lead times
                         target=str(cache_file),
                     )
 

@@ -220,6 +220,67 @@ else:
 
 ---
 
+### 8. Missing Forecast Lead Times and Parameters
+**Problem:** Download only retrieved step=0 (initial time) instead of full forecast range. Only 3 variables downloaded instead of 7. Error message: `No index entries for param=tcc`.
+
+**Cause:** Multiple issues:
+1. Missing `step` parameter in retrieve() call - defaults to step=0 only
+2. Parameter "tcc" (total cloud cover) not available in ECMWF Open Data
+3. Only 00z/12z runs have long-range forecasts (0-240h); 06z/18z runs limited to 0-90h
+4. lead_time coordinate not indexed, causing preview generation failures
+
+**Fix:** Multiple changes to download and preview code:
+
+1. **Add step parameter** to download all forecast lead times:
+```python
+# Generate forecast steps: 0-144h every 3h, then 150-240h every 6h
+self.forecast_steps = list(range(0, 145, 3)) + list(range(150, 241, 6))
+
+self.client.retrieve(
+    date=date,
+    time=time,
+    type="fc",
+    param=self.PARAMETERS,
+    step=self.forecast_steps,  # Download all lead times
+    target=str(cache_file),
+)
+```
+
+2. **Remove unsupported parameter** and restrict to 00z/12z runs:
+```python
+# Removed "tcc" from parameters list (not available)
+PARAMETERS = ["2t", "10u", "10v", "tp", "sp", "msl", "2d"]  # 7 parameters
+
+# Only use 00z/12z runs (have 0-240h forecasts)
+run_hours = [0, 12]  # Not [0, 6, 12, 18]
+```
+
+3. **Safe lead_time selection** in preview generation:
+```python
+def safe_select_lead_time(data_array, lead_time_hours):
+    """Handle both indexed and non-indexed lead_time coordinates."""
+    try:
+        return data_array.sel(lead_time=pd.Timedelta(hours=lead_time_hours))
+    except (KeyError, ValueError):
+        # Fallback to positional selection
+        target_lead = pd.Timedelta(hours=lead_time_hours)
+        lead_times = data_array.lead_time.values
+        idx = int(np.argmin(np.abs(lead_times - target_lead)))
+        return data_array.isel(lead_time=idx)
+```
+
+**Benefits:**
+- Downloads complete 10-day forecast (65 steps: 0-240h)
+- Gets all 7 available parameters
+- Robust preview generation with fallback for non-indexed coordinates
+- Clear logging of forecast steps and parameters
+
+**Files:**
+- `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+- `src/reformatters/generate_previews.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing
