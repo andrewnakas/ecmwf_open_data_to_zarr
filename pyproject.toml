@@ -3,7 +3,7 @@ name = "ecmwf-open-data-to-zarr"
 version = "0.1.0"
 description = "Reformat ECMWF Open Data forecasts into Zarr format"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = "ECMWF Open Data to Zarr Contributors" }
@@ -61,7 +61,7 @@ packages = ["src/reformatters"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -78,7 +78,7 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
