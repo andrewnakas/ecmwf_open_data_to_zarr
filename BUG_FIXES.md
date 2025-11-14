@@ -73,6 +73,49 @@ self.client.retrieve(
 
 ---
 
+### 4. ECMWF Data Availability Delay (404 Errors)
+**Problem:** 404 errors when trying to download ECMWF forecast data. Error: `HTTPError: 404 Client Error: Not Found for url: https://data.ecmwf.int/forecasts/...`
+
+**Cause:** ECMWF Open Data has significant delays:
+- Data available **7-9 hours** after forecast start time
+- Additional **1-2 hour** delay for open data distribution
+- Total delay: **~8-11 hours** after model run time
+
+Trying to fetch "latest" run immediately after it starts fails because data isn't published yet.
+
+**Fix:** Two-part solution:
+
+1. **Conservative time calculation** - Go back 12 hours in operational mode:
+```python
+# Account for 8-11 hour data delay
+now = datetime.utcnow()
+available_time = now - timedelta(hours=12)
+latest_run_hour = max([h for h in run_hours if h <= available_time.hour])
+```
+
+2. **Automatic fallback** - If 404 occurs, use client's latest detection:
+```python
+except Exception as e:
+    if "404" in str(e):
+        # Use client's automatic latest detection
+        result = self.client.retrieve(
+            type="fc",
+            param=self.PARAMETERS,  # No date/time specified
+            target=str(cache_file),
+        )
+        actual_time = result.datetime  # Get what was actually downloaded
+```
+
+**Benefits:**
+- Robust handling of data delays
+- Automatic fallback if timing calculation is off
+- Always gets the latest AVAILABLE data
+- Clear error messages about what's happening
+
+**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing
@@ -103,8 +146,8 @@ python -m reformatters validate
 **Issue:** `libeccodes not found`
 **Solution:** Install eccodes system library
 
-**Issue:** `ecmwf-opendata` download fails
-**Solution:** Check ECMWF data availability (data is ~1 hour behind model run time)
+**Issue:** `ecmwf-opendata` download fails with 404 error
+**Solution:** ECMWF data has 8-11 hour delay. Code now accounts for this automatically.
 
 **Issue:** `cfgrib` can't read GRIB
 **Solution:** Ensure GRIB file is valid and not corrupted during download
@@ -142,8 +185,8 @@ ECMWF API → GRIB2 files → cfgrib → xarray Dataset → Zarr store
 **Update Schedule:**
 - GitHub Actions: 05, 11, 17, 23 UTC (every 6 hours)
 - ECMWF runs: 00, 06, 12, 18 UTC
-- Data available: ~1 hour after run time
-- Pipeline runs: 1 hour after data availability
+- Data available: ~8-11 hours after run time (7-9h processing + 1-2h open data delay)
+- Pipeline runs: Requests forecast from 12 hours ago to ensure availability
 
 ---
 

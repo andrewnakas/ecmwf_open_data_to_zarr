@@ -63,20 +63,25 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         run_hours = [0, 6, 12, 18]
 
         if start_time is None and end_time is None:
-            # Operational mode: get latest run only
-            # The latest run is typically available 1 hour after run time
+            # Operational mode: get latest AVAILABLE run
+            # ECMWF Open Data has 7-11 hour delay after forecast time
+            # So we need to go back at least 12 hours to be safe
             now = datetime.utcnow()
-            latest_run_hour = max([h for h in run_hours if h <= now.hour], default=run_hours[-1])
+            available_time = now - timedelta(hours=12)
 
-            if latest_run_hour > now.hour:
+            # Find the most recent run hour before available_time
+            latest_run_hour = max([h for h in run_hours if h <= available_time.hour], default=run_hours[-1])
+
+            if latest_run_hour > available_time.hour:
                 # Use previous day's last run
-                latest_run = now.replace(hour=run_hours[-1], minute=0, second=0, microsecond=0)
+                latest_run = available_time.replace(hour=run_hours[-1], minute=0, second=0, microsecond=0)
                 latest_run -= timedelta(days=1)
             else:
-                latest_run = now.replace(
+                latest_run = available_time.replace(
                     hour=latest_run_hour, minute=0, second=0, microsecond=0
                 )
 
+            print(f"Requesting forecast from {latest_run} (accounting for ~8-11 hour data delay)")
             return [SourceFileCoord(init_time=latest_run)]
 
         else:
@@ -117,8 +122,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         print(f"  Parameters: {', '.join(self.PARAMETERS)}")
 
         try:
-            # Download all parameters in one request
-            # ECMWF API downloads all lead times by default for a given run
+            # Try to download specific date/time first
             self.client.retrieve(
                 date=coord.init_time.strftime("%Y-%m-%d"),
                 time=coord.init_time.hour,
@@ -131,8 +135,41 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             return cache_file
 
         except Exception as e:
-            print(f"  Error downloading: {e}")
-            raise
+            # If specific date fails (404), try getting latest available
+            if "404" in str(e):
+                print(f"  Requested forecast not yet available (404 error)")
+                print(f"  Attempting to download latest available forecast instead...")
+
+                try:
+                    # Use client's automatic latest detection (don't specify date/time)
+                    result = self.client.retrieve(
+                        type="fc",
+                        param=self.PARAMETERS,
+                        target=str(cache_file),
+                    )
+
+                    # Rename file to match actual datetime
+                    actual_time = result.datetime
+                    actual_cache_file = (
+                        self.cache_dir
+                        / f"ecmwf_ifs_{actual_time.strftime('%Y%m%d_%H%M')}.grib2"
+                    )
+                    cache_file.rename(actual_cache_file)
+
+                    print(f"  Downloaded latest available: {actual_time}")
+                    print(f"  File: {actual_cache_file.name} ({actual_cache_file.stat().st_size / 1024 / 1024:.1f} MB)")
+
+                    # Update coord to reflect actual time
+                    coord.init_time = actual_time
+
+                    return actual_cache_file
+
+                except Exception as e2:
+                    print(f"  Error downloading latest: {e2}")
+                    raise
+            else:
+                print(f"  Error downloading: {e}")
+                raise
 
     def read_data(self, file_path: Path, coord: SourceFileCoord) -> xr.Dataset:
         """Read GRIB2 file and convert to xarray Dataset.
