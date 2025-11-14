@@ -103,11 +103,27 @@ class RegionJob(ABC):
             ds: Dataset to write
             coord: Source file coordinates
         """
-        # Determine region to write based on init_time
-        region = {"init_time": slice(coord.init_time, coord.init_time)}
-
         try:
-            ds.to_zarr(self.zarr_store, mode="r+", region=region, consolidated=False)
+            # Check if this is the first write (template exists but no data yet)
+            import xarray as xr
+
+            try:
+                existing = xr.open_zarr(self.zarr_store)
+                # Check if init_time dimension is just the template placeholder
+                if len(existing.init_time) == 1:
+                    # First real data write - replace the template
+                    print(f"  First data write, replacing template")
+                    ds.to_zarr(self.zarr_store, mode="w", consolidated=True)
+                else:
+                    # Append mode - write to specific region
+                    print(f"  Appending data for {coord.init_time}")
+                    region = {"init_time": slice(coord.init_time, coord.init_time)}
+                    ds.to_zarr(self.zarr_store, mode="r+", region=region, consolidated=False)
+            except Exception:
+                # If we can't open existing store, try to write fresh
+                print(f"  Creating new zarr store")
+                ds.to_zarr(self.zarr_store, mode="w", consolidated=True)
+
         except Exception as e:
             print(f"Error writing data for {coord.init_time}: {e}")
             raise
