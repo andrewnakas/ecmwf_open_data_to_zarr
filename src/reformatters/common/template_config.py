@@ -125,5 +125,6 @@ class TemplateConfig(ABC):
 
             shutil.rmtree(path)
 
-        ds.to_zarr(path, mode="w", consolidated=True)
+        # Use Zarr v2 format for better compatibility
+        ds.to_zarr(path, mode="w", consolidated=True, zarr_version=2)
         print(f"Template written to {path}")
