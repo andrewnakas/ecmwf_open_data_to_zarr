@@ -97,7 +97,7 @@ class RegionJob(ABC):
         return ds
 
     def write_data(self, ds: xr.Dataset, coord: SourceFileCoord) -> None:
-        """Write data to zarr store.
+        """Write data to zarr store with rolling 48-hour retention.
 
         Args:
             ds: Dataset to write
@@ -106,6 +106,7 @@ class RegionJob(ABC):
         try:
             # Check if this is the first write (template exists but no data yet)
             import xarray as xr
+            import pandas as pd
 
             try:
                 existing = xr.open_zarr(self.zarr_store)
@@ -115,10 +116,37 @@ class RegionJob(ABC):
                     print(f"  First data write, replacing template")
                     ds.to_zarr(self.zarr_store, mode="w", consolidated=True, zarr_version=2)
                 else:
-                    # Append mode - write to specific region
-                    print(f"  Appending data for {coord.init_time}")
-                    region = {"init_time": slice(coord.init_time, coord.init_time)}
-                    ds.to_zarr(self.zarr_store, mode="r+", region=region, consolidated=False, zarr_version=2)
+                    # Check if this init_time already exists
+                    coord_time = pd.Timestamp(coord.init_time)
+                    existing_times = [pd.Timestamp(t) for t in existing.init_time.values]
+
+                    if coord_time in existing_times:
+                        # Update existing forecast
+                        print(f"  Updating existing forecast for {coord.init_time}")
+                        region = {"init_time": slice(coord.init_time, coord.init_time)}
+                        ds.to_zarr(self.zarr_store, mode="r+", region=region, consolidated=False, zarr_version=2)
+                    else:
+                        # Append new forecast
+                        print(f"  Appending new forecast for {coord.init_time}")
+                        combined = xr.concat([existing, ds], dim="init_time")
+
+                        # Keep only last 48 hours of forecasts
+                        # With 12-hour intervals (00z, 12z), that's 5 forecasts
+                        latest_times = sorted(combined.init_time.values)[-5:]
+                        combined = combined.sel(init_time=latest_times)
+
+                        print(f"  Retaining {len(latest_times)} most recent forecasts (48h rolling window)")
+                        if len(latest_times) > 0:
+                            print(f"  Time range: {pd.Timestamp(latest_times[0])} to {pd.Timestamp(latest_times[-1])}")
+
+                        # Write combined dataset
+                        combined.to_zarr(self.zarr_store, mode="w", consolidated=True, zarr_version=2)
+
+                # Reconsolidate metadata
+                import zarr
+                store = zarr.open(str(self.zarr_store), mode="r+")
+                zarr.consolidate_metadata(store.store)
+
             except Exception:
                 # If we can't open existing store, try to write fresh
                 print(f"  Creating new zarr store")

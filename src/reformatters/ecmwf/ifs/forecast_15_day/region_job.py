@@ -204,6 +204,10 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
 
             print(f"  Found {len(ds_list)} dataset(s) in GRIB file")
 
+            # Debug: Print what's in each dataset
+            for i, ds_part in enumerate(ds_list):
+                print(f"    Dataset {i+1}: vars={list(ds_part.data_vars.keys())}")
+
             # Merge all datasets
             if not ds_list:
                 raise ValueError("No data could be read from GRIB file")
@@ -221,6 +225,8 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
 
             # Merge with compat='override' to handle any remaining conflicts
             ds = xr.merge(cleaned_datasets, compat='override')
+
+            print(f"  After merge: {list(ds.data_vars.keys())}")
 
             # Standardize coordinates and variable names
             ds = self._standardize_dataset(ds, coord)
@@ -268,11 +274,21 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
                     var_renames[var] = our_name
 
         if var_renames:
+            print(f"  Renamed variables: {var_renames}")
             ds = ds.rename(var_renames)
 
         # Select only variables we want (do this early before coordinate processing)
         wanted_vars = list(self.PARAM_MAP.values())
         available_vars = [v for v in wanted_vars if v in ds.data_vars]
+
+        print(f"  Variables before selection: {list(ds.data_vars.keys())}")
+        print(f"  Selecting {len(available_vars)}/{len(wanted_vars)} variables")
+
+        if len(available_vars) < len(wanted_vars):
+            missing = set(wanted_vars) - set(available_vars)
+            print(f"  WARNING: Missing variables: {missing}")
+            print(f"  These parameters may not be available in this ECMWF data stream")
+
         ds = ds[available_vars]
 
         # Ensure init_time is a coordinate (after variable selection)
