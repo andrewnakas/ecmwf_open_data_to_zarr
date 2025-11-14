@@ -176,7 +176,20 @@ if "init_time" in ds.dims and "init_time" not in ds.indexes:
 - Preview generation can select by init_time
 - Consistent coordinate structure
 
-**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+**Additional Fix - Backward Compatibility:**
+Updated `generate_previews.py` to handle both indexed and non-indexed init_time:
+```python
+try:
+    latest_ds = ds.sel(init_time=latest_init)
+except KeyError:
+    # Fallback for old zarr stores without indexed init_time
+    latest_idx = int(ds.init_time.argmax().values)
+    latest_ds = ds.isel(init_time=latest_idx)
+```
+
+**Files:**
+- `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+- `src/reformatters/generate_previews.py`
 
 ---
 

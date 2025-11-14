@@ -41,7 +41,19 @@ def generate_previews(zarr_path: Path, output_dir: Path) -> dict:
 
     # Get latest forecast
     latest_init = ds.init_time.max().values
-    latest_ds = ds.sel(init_time=latest_init)
+
+    # Try to select by init_time, but handle case where it's not indexed
+    try:
+        latest_ds = ds.sel(init_time=latest_init)
+    except KeyError:
+        # Fallback: use isel if init_time is not indexed
+        print("Warning: init_time not indexed, using positional selection")
+        if len(ds.init_time) == 1:
+            latest_ds = ds.isel(init_time=0)
+        else:
+            # Find the position of the latest init_time
+            latest_idx = int(ds.init_time.argmax().values)
+            latest_ds = ds.isel(init_time=latest_idx)
 
     print(f"Latest forecast: {latest_init}")
 
