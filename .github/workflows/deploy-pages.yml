@@ -1,0 +1,172 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/*
+    paths:
+      - 'docs/**'
+      - 'data/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Create deployment directory
+        run: |
+          mkdir -p _site
+
+          # Copy documentation
+          if [ -d "docs" ]; then
+            cp -r docs/* _site/
+          fi
+
+          # Copy data directory for public access
+          if [ -d "data" ]; then
+            cp -r data _site/
+          fi
+
+          # Create a simple index if none exists
+          if [ ! -f "_site/index.html" ]; then
+            cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>ECMWF Open Data to Zarr</title>
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                      max-width: 800px;
+                      margin: 50px auto;
+                      padding: 20px;
+                      line-height: 1.6;
+                      color: #333;
+                  }
+                  h1 { color: #2563eb; }
+                  code {
+                      background: #f1f5f9;
+                      padding: 2px 6px;
+                      border-radius: 3px;
+                      font-family: 'Courier New', monospace;
+                  }
+                  pre {
+                      background: #1e293b;
+                      color: #e2e8f0;
+                      padding: 15px;
+                      border-radius: 5px;
+                      overflow-x: auto;
+                  }
+                  pre code {
+                      background: none;
+                      color: inherit;
+                  }
+                  a { color: #2563eb; }
+                  .badge {
+                      display: inline-block;
+                      padding: 4px 8px;
+                      background: #10b981;
+                      color: white;
+                      border-radius: 3px;
+                      font-size: 0.875rem;
+                      font-weight: 500;
+                  }
+              </style>
+          </head>
+          <body>
+              <h1>ECMWF Open Data to Zarr</h1>
+
+              <p><span class="badge">Live Dataset</span></p>
+
+              <p>Automated pipeline converting ECMWF IFS forecasts to cloud-optimized Zarr format, updated every 6 hours.</p>
+
+              <h2>Quick Start</h2>
+
+              <p>Access the latest forecast data using xarray:</p>
+
+              <pre><code>import xarray as xr
+
+          # Open the latest ECMWF IFS forecast
+          ds = xr.open_zarr(
+              "https://YOUR_USERNAME.github.io/ecmwf_open_data_to_zarr/data/ecmwf/ifs/forecast-15-day/latest.zarr",
+              decode_timedelta=True,
+              chunks=None
+          )
+
+          # Select a location (e.g., New York City)
+          nyc = ds.sel(latitude=40.7, longitude=-74.0, method="nearest")
+
+          # Plot temperature forecast
+          nyc["temperature_2m"].plot(x="lead_time")</code></pre>
+
+              <h2>Dataset Specifications</h2>
+
+              <ul>
+                  <li><strong>Model:</strong> ECMWF IFS High-Resolution</li>
+                  <li><strong>Resolution:</strong> 0.25° (~25 km)</li>
+                  <li><strong>Update Frequency:</strong> Every 6 hours (00, 06, 12, 18 UTC)</li>
+                  <li><strong>Forecast Horizon:</strong> 15 days (360 hours)</li>
+                  <li><strong>Coverage:</strong> Global</li>
+                  <li><strong>Format:</strong> Zarr v3 with Blosc compression</li>
+              </ul>
+
+              <h2>Available Variables</h2>
+
+              <ul>
+                  <li>Temperature (2m)</li>
+                  <li>Wind (U/V components at 10m)</li>
+                  <li>Precipitation (total)</li>
+                  <li>Pressure (surface, mean sea level)</li>
+                  <li>Cloud cover (total)</li>
+                  <li>Relative humidity (2m)</li>
+              </ul>
+
+              <h2>Direct Data Access</h2>
+
+              <p><a href="data/ecmwf/ifs/forecast-15-day/latest.zarr/">Browse Zarr Store</a></p>
+
+              <h2>Repository</h2>
+
+              <p><a href="https://github.com/YOUR_USERNAME/ecmwf_open_data_to_zarr">View on GitHub</a></p>
+
+              <h2>Acknowledgments</h2>
+
+              <ul>
+                  <li>Architecture inspired by <a href="https://dynamical.org">dynamical.org</a></li>
+                  <li>Data provided by <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a> (CC-BY-4.0)</li>
+              </ul>
+          </body>
+          </html>
+          EOF
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

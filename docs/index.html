@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECMWF Open Data to Zarr</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+            color: white;
+            padding: 40px 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #10b981;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .badge.update {
+            background: #f59e0b;
+        }
+
+        main {
+            padding: 40px 30px;
+        }
+
+        h2 {
+            color: #2563eb;
+            margin: 30px 0 15px;
+            font-size: 1.75rem;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #475569;
+            margin: 20px 0 10px;
+            font-size: 1.25rem;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #334155;
+        }
+
+        ul {
+            margin: 15px 0 15px 30px;
+            color: #334155;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        code {
+            background: #f1f5f9;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #dc2626;
+        }
+
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid #2563eb;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .spec-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .spec-card h4 {
+            color: #2563eb;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .spec-card p {
+            color: #1e293b;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 10px 10px 10px 0;
+            transition: background 0.3s;
+        }
+
+        .cta-button:hover {
+            background: #1e40af;
+            text-decoration: none;
+        }
+
+        .cta-button.secondary {
+            background: #64748b;
+        }
+
+        .cta-button.secondary:hover {
+            background: #475569;
+        }
+
+        footer {
+            background: #f8fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+            color: #64748b;
+        }
+
+        .highlight {
+            background: #fef3c7;
+            padding: 20px;
+            border-left: 4px solid #f59e0b;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .specs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 ECMWF Open Data to Zarr</h1>
+            <p class="subtitle">Cloud-optimized weather forecast data, updated every 6 hours</p>
+            <div>
+                <span class="badge">Live Dataset</span>
+                <span class="badge update">Auto-Updated</span>
+            </div>
+        </header>
+
+        <main>
+            <section>
+                <h2>📊 Quick Start</h2>
+                <p>Access the latest ECMWF IFS forecast using Python and xarray:</p>
+
+                <pre><code>import xarray as xr
+
+# Open the latest forecast (replace YOUR_USERNAME)
+ds = xr.open_zarr(
+    "https://YOUR_USERNAME.github.io/ecmwf_open_data_to_zarr/data/ecmwf/ifs/forecast-15-day/latest.zarr",
+    decode_timedelta=True,
+    chunks=None
+)
+
+# Select a location (e.g., New York City)
+nyc = ds.sel(latitude=40.7, longitude=-74.0, method="nearest")
+
+# Plot 15-day temperature forecast
+import matplotlib.pyplot as plt
+(nyc["temperature_2m"] - 273.15).plot(x="lead_time")
+plt.ylabel("Temperature (°C)")
+plt.title("NYC 15-Day Temperature Forecast")
+plt.show()</code></pre>
+            </section>
+
+            <section>
+                <h2>⚙️ Dataset Specifications</h2>
+
+                <div class="specs-grid">
+                    <div class="spec-card">
+                        <h4>Model</h4>
+                        <p>ECMWF IFS HRES</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4>Resolution</h4>
+                        <p>0.25° (~25 km)</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4>Update Frequency</h4>
+                        <p>Every 6 hours</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4>Forecast Horizon</h4>
+                        <p>15 days (360h)</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4>Coverage</h4>
+                        <p>Global</p>
+                    </div>
+                    <div class="spec-card">
+                        <h4>Format</h4>
+                        <p>Zarr v3 + Blosc</p>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>📈 Available Variables</h2>
+                <ul>
+                    <li><strong>Temperature:</strong> 2-meter air temperature</li>
+                    <li><strong>Wind:</strong> U and V components at 10 meters</li>
+                    <li><strong>Precipitation:</strong> Total precipitation (accumulated)</li>
+                    <li><strong>Pressure:</strong> Surface pressure and mean sea level pressure</li>
+                    <li><strong>Cloud Cover:</strong> Total cloud cover fraction</li>
+                    <li><strong>Humidity:</strong> 2-meter relative humidity</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>🚀 Features</h2>
+
+                <h3>Automated Pipeline</h3>
+                <ul>
+                    <li>GitHub Actions pulls data every 6 hours (00, 06, 12, 18 UTC + 1h delay)</li>
+                    <li>Automatic conversion from GRIB2 to Zarr</li>
+                    <li>Data validation and quality checks</li>
+                    <li>Deployed to GitHub Pages for public access</li>
+                </ul>
+
+                <h3>Inspired by dynamical.org</h3>
+                <ul>
+                    <li>Three-class architecture: TemplateConfig → RegionJob → Dataset</li>
+                    <li>Cloud-optimized chunking for efficient access</li>
+                    <li>Blosc compression for reduced storage</li>
+                    <li>CF-compliant metadata</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>🔗 Resources</h2>
+
+                <div>
+                    <a href="data/ecmwf/ifs/forecast-15-day/latest.zarr/" class="cta-button">
+                        Browse Zarr Store →
+                    </a>
+                    <a href="https://github.com/YOUR_USERNAME/ecmwf_open_data_to_zarr" class="cta-button secondary">
+                        View on GitHub →
+                    </a>
+                </div>
+
+                <div class="highlight">
+                    <strong>💡 Example Notebook:</strong> Check out
+                    <code>notebooks/example_access.ipynb</code> for detailed examples of data access patterns,
+                    visualization techniques, and multi-location analysis.
+                </div>
+            </section>
+
+            <section>
+                <h2>📋 Requirements</h2>
+                <p>To use this data, you'll need:</p>
+                <pre><code>pip install xarray zarr dask fsspec s3fs matplotlib</code></pre>
+
+                <p>Optional for advanced features:</p>
+                <pre><code>pip install cartopy geopandas rioxarray</code></pre>
+            </section>
+
+            <section>
+                <h2>🙏 Acknowledgments</h2>
+                <ul>
+                    <li>Architecture inspired by <a href="https://dynamical.org">dynamical.org</a></li>
+                    <li>Data provided by <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ECMWF Open Data</a> (CC-BY-4.0 license)</li>
+                    <li>Built with <a href="http://xarray.pydata.org/">xarray</a>, <a href="https://zarr.dev/">zarr</a>, and <a href="https://github.com/ecmwf/ecmwf-opendata">ecmwf-opendata</a></li>
+                </ul>
+            </section>
+        </main>
+
+        <footer>
+            <p>ECMWF Open Data to Zarr • BSD-3-Clause License</p>
+            <p>Data: CC-BY-4.0 by ECMWF</p>
+        </footer>
+    </div>
+</body>
+</html>
