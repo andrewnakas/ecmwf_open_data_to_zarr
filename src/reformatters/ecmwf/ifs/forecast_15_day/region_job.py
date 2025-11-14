@@ -18,24 +18,23 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
     """
 
     # ECMWF parameter short names (GRIB parameter codes)
-    # 10 essential parameters for comprehensive weather forecasting
-    # Based on ECMWF IFS 0.25° forecast data stream
+    # 9 essential parameters for comprehensive weather forecasting
+    # Based on ECMWF Open Data IFS 0.25° forecast data stream
     PARAMETERS = [
-        # Temperature and humidity (critical)
+        # Temperature and humidity
         "2t",      # 2m temperature
         "2d",      # 2m dewpoint temperature
-        # Wind (critical)
+        # Wind
         "10u",     # 10m u-wind component
         "10v",     # 10m v-wind component
-        "10fg",    # 10m wind gust
-        # Pressure (critical)
+        # Pressure
         "msl",     # mean sea level pressure
         "sp",      # surface pressure
-        # Precipitation (critical)
+        # Precipitation
         "tp",      # total precipitation
-        # Atmospheric water (important)
+        # Atmospheric water
         "tcwv",    # total column water vapour
-        # Radiation (useful)
+        # Radiation
         "ssrd",    # surface solar radiation downwards
     ]
 
@@ -47,7 +46,6 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         "d2m": "dewpoint_2m",          # cfgrib name for 2d
         "u10": "wind_u_10m",           # cfgrib name for 10u
         "v10": "wind_v_10m",           # cfgrib name for 10v
-        "i10fg": "wind_gust_10m",      # cfgrib name for 10fg (instantaneous)
         "msl": "mean_sea_level_pressure",
         "sp": "surface_pressure",
         "tp": "total_precipitation",

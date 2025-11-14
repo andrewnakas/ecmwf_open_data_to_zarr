@@ -85,106 +85,28 @@ class EcmwfIfsForecast15DayTemplateConfig(TemplateConfig):
         return {}
 
     def data_vars(self) -> dict[str, tuple[tuple[str, ...], Any]]:
-        """Define data variables."""
-        dims = ("init_time", "lead_time", "latitude", "longitude")
+        """Define data variables with their dimensions and fill values.
 
-        variables = {
-            # Temperature
-            "temperature_2m": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "2 metre temperature",
-                    "standard_name": "air_temperature",
-                    "units": "K",
-                },
-            ),
-            # Wind
-            "wind_u_10m": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "10 metre U wind component",
-                    "standard_name": "eastward_wind",
-                    "units": "m s-1",
-                },
-            ),
-            "wind_v_10m": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "10 metre V wind component",
-                    "standard_name": "northward_wind",
-                    "units": "m s-1",
-                },
-            ),
-            # Precipitation
-            "total_precipitation": (
-                dims,
-                0.0,
-                {
-                    "long_name": "Total precipitation",
-                    "standard_name": "precipitation_amount",
-                    "units": "m",
-                },
-            ),
-            # Pressure
-            "surface_pressure": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "Surface pressure",
-                    "standard_name": "surface_air_pressure",
-                    "units": "Pa",
-                },
-            ),
-            "mean_sea_level_pressure": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "Mean sea level pressure",
-                    "standard_name": "air_pressure_at_mean_sea_level",
-                    "units": "Pa",
-                },
-            ),
-            # Cloud
-            "total_cloud_cover": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "Total cloud cover",
-                    "standard_name": "cloud_area_fraction",
-                    "units": "1",
-                },
-            ),
-            # Humidity
-            "relative_humidity_2m": (
-                dims,
-                np.nan,
-                {
-                    "long_name": "2 metre relative humidity",
-                    "standard_name": "relative_humidity",
-                    "units": "%",
-                },
-            ),
-        }
-
-        # Return as expected format (without attrs for now, will be added separately)
-        return {name: (dims, fill_value) for name, dims, fill_value, attrs in [variables[k] + (variables[k],) for k in variables]}
-
-    def data_vars(self) -> dict[str, tuple[tuple[str, ...], Any]]:
-        """Define data variables with their dimensions and fill values."""
+        Matches the 9 essential parameters from ECMWF Open Data.
+        """
         dims = ("init_time", "lead_time", "latitude", "longitude")
 
         return {
+            # Temperature and humidity
             "temperature_2m": (dims, np.nan),
+            "dewpoint_2m": (dims, np.nan),
+            # Wind
             "wind_u_10m": (dims, np.nan),
             "wind_v_10m": (dims, np.nan),
-            "total_precipitation": (dims, 0.0),
-            "surface_pressure": (dims, np.nan),
+            # Pressure
             "mean_sea_level_pressure": (dims, np.nan),
-            "total_cloud_cover": (dims, np.nan),
-            "relative_humidity_2m": (dims, np.nan),
+            "surface_pressure": (dims, np.nan),
+            # Precipitation
+            "total_precipitation": (dims, 0.0),
+            # Atmospheric water
+            "total_column_water_vapour": (dims, np.nan),
+            # Radiation
+            "surface_solar_radiation_downwards": (dims, np.nan),
         }
 
     def encoding(self) -> dict[str, dict[str, Any]]:
