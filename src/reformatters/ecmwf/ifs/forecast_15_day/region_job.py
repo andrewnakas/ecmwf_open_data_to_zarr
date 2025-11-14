@@ -201,7 +201,19 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             if not ds_list:
                 raise ValueError("No data could be read from GRIB file")
 
-            ds = xr.merge(ds_list)
+            # Drop height coordinates that conflict between datasets
+            # (10m for wind, 2m for temperature, etc - already encoded in variable names)
+            cleaned_datasets = []
+            for ds_part in ds_list:
+                # Drop conflicting height-related coordinates
+                coords_to_drop = [c for c in ['heightAboveGround', 'level', 'isobaricInhPa']
+                                 if c in ds_part.coords]
+                if coords_to_drop:
+                    ds_part = ds_part.drop_vars(coords_to_drop)
+                cleaned_datasets.append(ds_part)
+
+            # Merge with compat='override' to handle any remaining conflicts
+            ds = xr.merge(cleaned_datasets, compat='override')
 
             # Standardize coordinates and variable names
             ds = self._standardize_dataset(ds, coord)

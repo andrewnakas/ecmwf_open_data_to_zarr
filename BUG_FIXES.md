@@ -116,6 +116,40 @@ except Exception as e:
 
 ---
 
+### 5. GRIB Multi-Level Merge Conflict
+**Problem:** `MergeError: conflicting values for variable 'heightAboveGround' on objects to be combined`
+
+**Cause:** cfgrib splits multi-parameter GRIB files into separate datasets by level:
+- 10m level (wind variables: 10u, 10v) → heightAboveGround = 10
+- 2m level (temperature, dewpoint: 2t, 2d) → heightAboveGround = 2
+- Surface level (pressure, precip: sp, msl, tp, tcc) → different coordinates
+
+When xr.merge() tries to combine these, it finds conflicting height coordinate values.
+
+**Fix:** Drop conflicting height coordinates before merging (height info already in variable names):
+```python
+# Clean each dataset before merge
+cleaned_datasets = []
+for ds_part in ds_list:
+    coords_to_drop = [c for c in ['heightAboveGround', 'level', 'isobaricInhPa']
+                     if c in ds_part.coords]
+    if coords_to_drop:
+        ds_part = ds_part.drop_vars(coords_to_drop)
+    cleaned_datasets.append(ds_part)
+
+# Merge with compat='override' for any remaining conflicts
+ds = xr.merge(cleaned_datasets, compat='override')
+```
+
+**Benefits:**
+- Successful merge of multi-level parameters
+- Cleaner dataset (no redundant height coords)
+- Height information preserved in variable names (e.g., `wind_u_10m`, `temperature_2m`)
+
+**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing
