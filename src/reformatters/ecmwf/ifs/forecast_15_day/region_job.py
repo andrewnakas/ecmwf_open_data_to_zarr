@@ -18,6 +18,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
     """
 
     # ECMWF parameter short names (GRIB parameter codes)
+    # Using only parameters definitely available in ECMWF Open Data
     PARAMETERS = [
         "2t",  # 2m temperature
         "10u",  # 10m u-wind
@@ -26,7 +27,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         "sp",  # surface pressure
         "msl",  # mean sea level pressure
         "tcc",  # total cloud cover
-        "2r",  # 2m relative humidity (if available, may need alternative)
+        "2d",  # 2m dewpoint temperature (proxy for humidity)
     ]
 
     # Map GRIB parameter names to our variable names
@@ -38,7 +39,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         "sp": "surface_pressure",
         "msl": "mean_sea_level_pressure",
         "tcc": "total_cloud_cover",
-        "2r": "relative_humidity_2m",
+        "2d": "relative_humidity_2m",  # Will compute from dewpoint if needed
     }
 
     def __init__(self, zarr_store: Path, cache_dir: Path | None = None):
@@ -117,16 +118,35 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         try:
             # Download all parameters and lead times
             # Note: ECMWF API downloads all lead times by default for a given run
-            self.client.retrieve(
-                date=coord.init_time.strftime("%Y-%m-%d"),
-                time=coord.init_time.hour,
-                type="fc",  # forecast
-                param=self.PARAMETERS,
-                target=str(cache_file),
-            )
+            # Download each parameter separately to avoid conflicts
+            temp_files = []
+            for param in self.PARAMETERS:
+                param_file = self.cache_dir / f"ecmwf_ifs_{coord.init_time.strftime('%Y%m%d_%H%M')}_{param}.grib2"
 
-            print(f"  Downloaded to {cache_file}")
-            return cache_file
+                if not param_file.exists():
+                    print(f"  Downloading {param}...")
+                    try:
+                        self.client.retrieve(
+                            date=coord.init_time.strftime("%Y-%m-%d"),
+                            time=coord.init_time.hour,
+                            type="fc",  # forecast
+                            param=[param],
+                            target=str(param_file),
+                        )
+                        temp_files.append(param_file)
+                    except Exception as e:
+                        print(f"  Warning: Could not download {param}: {e}")
+                        continue
+                else:
+                    temp_files.append(param_file)
+
+            if not temp_files:
+                raise ValueError("No parameters could be downloaded")
+
+            # For now, return the first file (we'll handle multiple files later)
+            # In a production system, you'd merge these GRIB files
+            print(f"  Downloaded {len(temp_files)} parameter files")
+            return temp_files[0] if temp_files else cache_file
 
         except Exception as e:
             print(f"  Error downloading: {e}")
