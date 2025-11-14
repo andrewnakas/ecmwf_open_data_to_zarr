@@ -1,5 +1,5 @@
 {
-  "long_name": "Lead time",
+  "long_name": "time since forecast_reference_time",
   "standard_name": "forecast_period",
   "dtype": "timedelta64[ns]",
   "units": "hours",

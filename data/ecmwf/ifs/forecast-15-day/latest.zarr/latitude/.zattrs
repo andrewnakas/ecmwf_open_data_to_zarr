@@ -1,8 +1,8 @@
 {
-  "long_name": "Latitude",
-  "standard_name": "latitude",
   "units": "degrees_north",
-  "axis": "Y",
+  "standard_name": "latitude",
+  "long_name": "latitude",
+  "stored_direction": "decreasing",
   "_ARRAY_DIMENSIONS": [
     "latitude"
   ]

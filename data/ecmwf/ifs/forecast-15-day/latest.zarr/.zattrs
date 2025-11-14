@@ -1,12 +1,9 @@
 {
-  "title": "ECMWF IFS High-Resolution 15-day Forecast",
+  "GRIB_edition": 2,
+  "GRIB_centre": "ecmf",
+  "GRIB_centreDescription": "European Centre for Medium-Range Weather Forecasts",
+  "GRIB_subCentre": 0,
+  "Conventions": "CF-1.7",
   "institution": "European Centre for Medium-Range Weather Forecasts",
-  "source": "ECMWF Integrated Forecasting System (IFS)",
-  "conventions": "CF-1.8",
-  "resolution": "0.25 degrees",
-  "forecast_horizon": "15 days (360 hours)",
-  "temporal_resolution": "3-hourly (0-144h), 6-hourly (150-360h)",
-  "coverage": "Global",
-  "license": "CC-BY-4.0",
-  "references": "https://www.ecmwf.int/en/forecasts/datasets/open-data"
+  "coordinates": "init_time"
 }

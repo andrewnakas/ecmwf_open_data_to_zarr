@@ -1,10 +1,6 @@
 {
-  "shape": [
-    1
-  ],
-  "chunks": [
-    1
-  ],
+  "shape": [],
+  "chunks": [],
   "dtype": "<i8",
   "fill_value": null,
   "order": "C",
@@ -12,8 +8,8 @@
   "dimension_separator": ".",
   "compressor": {
     "id": "blosc",
-    "cname": "zstd",
-    "clevel": 3,
+    "cname": "lz4",
+    "clevel": 5,
     "shuffle": 1,
     "blocksize": 0
   },
