@@ -40,51 +40,34 @@ else:
 
 ---
 
-### 3. ECMWF Parameter Download
-**Problem:** ECMWF Open Data API may have issues downloading multiple parameters in a single request.
+### 3. ECMWF Bulk Download Simplification
+**Problem:** Individual parameter downloads were failing with "No parameters could be downloaded" error. Only one GRIB file was downloaded instead of the full forecast.
 
-**Cause:** Some parameters may not be available or may conflict when requested together.
+**Cause:** Looping through parameters individually was unreliable and didn't align with how ecmwf-opendata package is designed to work.
 
-**Fix:** Download each parameter separately and store all files:
+**Fix:** Use the package's native bulk download capability - download all parameters in a single request:
 ```python
-for param in self.PARAMETERS:
-    param_file = self.cache_dir / f"ecmwf_ifs_{init_time}_{param}.grib2"
-    self.client.retrieve(
-        date=date,
-        time=time,
-        type="fc",
-        param=[param],  # Single parameter
-        target=str(param_file),
-    )
-    temp_files.append(param_file)
+# Single bulk download of all parameters
+self.client.retrieve(
+    date=coord.init_time.strftime("%Y-%m-%d"),
+    time=coord.init_time.hour,
+    type="fc",  # forecast
+    param=self.PARAMETERS,  # All parameters at once
+    target=str(cache_file),
+)
 ```
+
+**Benefits:**
+- Single GRIB file with all parameters and lead times
+- More reliable downloads
+- Simpler code - removed need for `self.downloaded_files` dict
+- Faster execution - one API call instead of 8 separate calls
+- Uses ecmwf-opendata package as intended
 
 **Changes:**
-- Changed `2r` (relative humidity) to `2d` (dewpoint temperature) - more reliably available
-- Store all downloaded files in `self.downloaded_files` dict
-
-**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
-
----
-
-### 4. GRIB Reading from Multiple Files
-**Problem:** When downloading parameters separately, we need to read and merge multiple GRIB files.
-
-**Cause:** Original code expected all parameters in a single file.
-
-**Fix:** Read each parameter file separately and merge:
-```python
-init_time_key = coord.init_time.strftime('%Y%m%d_%H%M')
-param_files = self.downloaded_files.get(init_time_key, [])
-
-datasets = []
-for param_file in param_files:
-    ds_list = cfgrib.open_datasets(str(param_file), backend_kwargs={"indexpath": ""})
-    if ds_list:
-        datasets.append(ds_list[0])
-
-ds = xr.merge(datasets)
-```
+- Removed individual parameter download loop
+- Simplified read_data to handle single multi-parameter GRIB file
+- cfgrib automatically splits into datasets by type/level and merges them
 
 **File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
 
@@ -109,8 +92,8 @@ python -m reformatters validate
 
 ### Expected Workflow
 1. Template created with proper dimensions (1, 85, 721, 1440)
-2. ECMWF data downloaded (8 parameters × GRIB files)
-3. Each GRIB file read with cfgrib
+2. ECMWF data downloaded (single GRIB file with all 8 parameters and all lead times)
+3. GRIB file read with cfgrib (automatically splits into multiple datasets by type/level)
 4. Datasets merged into single xarray Dataset
 5. Data written to zarr with mode="w" (first time)
 6. Subsequent updates use mode="r+" with region selection
@@ -166,8 +149,8 @@ ECMWF API → GRIB2 files → cfgrib → xarray Dataset → Zarr store
 
 ## Files Modified
 
-1. `src/reformatters/common/template_config.py` - Fixed template generation
-2. `src/reformatters/common/region_job.py` - Fixed write logic
-3. `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py` - Fixed download and read
+1. `src/reformatters/common/template_config.py` - Fixed template generation, forced Zarr v2
+2. `src/reformatters/common/region_job.py` - Fixed write logic, forced Zarr v2
+3. `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py` - Simplified to bulk download
 
 All fixes committed to: `claude/ecmwf-zarr-pipeline-019dd7ASphVvcTkojH919dK3`

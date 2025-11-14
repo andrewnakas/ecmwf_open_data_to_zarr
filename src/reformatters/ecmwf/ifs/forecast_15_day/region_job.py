@@ -46,7 +46,6 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         """Initialize ECMWF region job."""
         super().__init__(zarr_store, cache_dir)
         self.client = Client(source="ecmwf")
-        self.downloaded_files = {}  # Store downloaded files per init_time
 
     def generate_source_file_coords(
         self, start_time: datetime | None = None, end_time: datetime | None = None
@@ -115,96 +114,57 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             return cache_file
 
         print(f"  Downloading forecast from {coord.init_time}")
+        print(f"  Parameters: {', '.join(self.PARAMETERS)}")
 
         try:
-            # Download all parameters and lead times
-            # Note: ECMWF API downloads all lead times by default for a given run
-            # Download each parameter separately to avoid conflicts
-            temp_files = []
-            for param in self.PARAMETERS:
-                param_file = self.cache_dir / f"ecmwf_ifs_{coord.init_time.strftime('%Y%m%d_%H%M')}_{param}.grib2"
+            # Download all parameters in one request
+            # ECMWF API downloads all lead times by default for a given run
+            self.client.retrieve(
+                date=coord.init_time.strftime("%Y-%m-%d"),
+                time=coord.init_time.hour,
+                type="fc",  # forecast
+                param=self.PARAMETERS,  # All parameters at once
+                target=str(cache_file),
+            )
 
-                if not param_file.exists():
-                    print(f"  Downloading {param}...")
-                    try:
-                        self.client.retrieve(
-                            date=coord.init_time.strftime("%Y-%m-%d"),
-                            time=coord.init_time.hour,
-                            type="fc",  # forecast
-                            param=[param],
-                            target=str(param_file),
-                        )
-                        temp_files.append(param_file)
-                    except Exception as e:
-                        print(f"  Warning: Could not download {param}: {e}")
-                        continue
-                else:
-                    temp_files.append(param_file)
-
-            if not temp_files:
-                raise ValueError("No parameters could be downloaded")
-
-            # Store all downloaded files for this init_time
-            init_time_key = coord.init_time.strftime('%Y%m%d_%H%M')
-            self.downloaded_files[init_time_key] = temp_files
-
-            print(f"  Downloaded {len(temp_files)} parameter files")
-            return cache_file  # Return dummy file, actual files stored in self.downloaded_files
+            print(f"  Downloaded: {cache_file.name} ({cache_file.stat().st_size / 1024 / 1024:.1f} MB)")
+            return cache_file
 
         except Exception as e:
             print(f"  Error downloading: {e}")
             raise
 
     def read_data(self, file_path: Path, coord: SourceFileCoord) -> xr.Dataset:
-        """Read GRIB2 file(s) and convert to xarray Dataset.
+        """Read GRIB2 file and convert to xarray Dataset.
 
         Args:
-            file_path: Path to GRIB2 file (not used, files from self.downloaded_files)
+            file_path: Path to GRIB2 file
             coord: Source file coordinate
 
         Returns:
             xarray Dataset with standardized coordinates
         """
-        print(f"  Reading GRIB2 files for {coord.init_time}")
+        print(f"  Reading GRIB2 file: {file_path.name}")
 
         try:
             import cfgrib
 
-            # Get the list of downloaded files for this init_time
-            init_time_key = coord.init_time.strftime('%Y%m%d_%H%M')
-            param_files = self.downloaded_files.get(init_time_key, [])
+            # Open all datasets from the multi-parameter GRIB file
+            # cfgrib will split into multiple datasets based on type/level
+            ds_list = cfgrib.open_datasets(
+                str(file_path),
+                backend_kwargs={
+                    "indexpath": "",
+                },
+            )
 
-            if not param_files:
-                raise ValueError(f"No downloaded files found for {init_time_key}")
+            print(f"  Found {len(ds_list)} dataset(s) in GRIB file")
 
-            datasets = []
-
-            # Read each parameter file
-            for param_file in param_files:
-                param = param_file.stem.split('_')[-1]  # Extract param from filename
-                print(f"    Reading {param} from {param_file.name}")
-
-                try:
-                    # Open dataset with cfgrib
-                    ds_list = cfgrib.open_datasets(
-                        str(param_file),
-                        backend_kwargs={
-                            "indexpath": "",
-                        },
-                    )
-
-                    # Take the first dataset (surface level)
-                    if ds_list:
-                        datasets.append(ds_list[0])
-
-                except Exception as e:
-                    print(f"    Warning: Could not read {param}: {e}")
-
-            # Merge datasets
-            if not datasets:
+            # Merge all datasets
+            if not ds_list:
                 raise ValueError("No data could be read from GRIB file")
 
-            ds = xr.merge(datasets)
+            ds = xr.merge(ds_list)
 
             # Standardize coordinates and variable names
             ds = self._standardize_dataset(ds, coord)
