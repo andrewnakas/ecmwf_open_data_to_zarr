@@ -281,6 +281,64 @@ def safe_select_lead_time(data_array, lead_time_hours):
 
 ---
 
+### 9. Expand to ALL ECMWF Open Data Parameters
+**Problem:** Only downloading 7 parameters when ECMWF Open Data provides 35+ surface parameters. Missing critical data like radiation, snow/ice, wind stress, convective parameters, etc.
+
+**Cause:** Initial implementation used a minimal parameter set for testing. User requested: "can't you pull all the data down and make a new zarr that has all the data? search and figure out what real time open data for ifs ecmwf puts out and grab it all"
+
+**Investigation:** Fetched ECMWF index file to discover ALL available parameters:
+- 35+ surface parameters (levtype: sfc)
+- Includes: temperature, wind, pressure, precipitation, radiation, snow/ice, convection, geography
+
+**Fix:** Expanded parameter list from 7 to 36 parameters to download complete ECMWF dataset:
+
+```python
+# OLD (7 parameters):
+PARAMETERS = ["2t", "10u", "10v", "tp", "sp", "msl", "2d"]
+
+# NEW (36 parameters) - ALL surface parameters:
+PARAMETERS = [
+    # Temperature and humidity
+    "2t", "2d", "skt", "mx2t3", "mn2t3",
+    # Wind
+    "10u", "10v", "10fg", "100u", "100v", "ewss", "nsss",
+    # Pressure
+    "sp", "msl",
+    # Precipitation and water
+    "tp", "tprate", "ro", "tcw", "tcwv",
+    # Radiation
+    "ssrd", "strd", "ssr", "str", "ttr",
+    # Snow and ice
+    "asn", "sithick", "sve", "svn",
+    # Convection
+    "mucape",
+    # Geography and surface
+    "z", "lsm", "sdor", "slor", "zos", "ptype",
+]
+```
+
+**Parameter Categories:**
+- **Temperature/Humidity (5):** 2m temp, dewpoint, skin temp, max/min temp
+- **Wind (7):** 10m/100m u/v components, gusts, wind stress
+- **Pressure (2):** surface, mean sea level
+- **Precipitation/Water (5):** total precip, rate, runoff, column water
+- **Radiation (5):** solar/thermal up/down at surface and TOA
+- **Snow/Ice (4):** albedo, thickness, evaporation, melt
+- **Convection (1):** CAPE
+- **Geography (7):** height, land mask, orography, sea surface height, precip type
+
+**Benefits:**
+- Complete weather dataset for advanced applications
+- Radiation data for solar/energy modeling
+- Snow/ice data for cryosphere studies
+- Convective parameters for severe weather
+- Geography fields for terrain analysis
+- Matches what ECMWF actually provides at real-time update intervals
+
+**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing

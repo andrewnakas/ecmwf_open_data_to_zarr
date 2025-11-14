@@ -18,26 +18,99 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
     """
 
     # ECMWF parameter short names (GRIB parameter codes)
-    # Using only parameters available in ECMWF Open Data
+    # ALL surface parameters available in ECMWF Open Data (levtype: sfc)
+    # Based on ECMWF IFS 0.25° forecast data stream
     PARAMETERS = [
-        "2t",  # 2m temperature
-        "10u",  # 10m u-wind
-        "10v",  # 10m v-wind
-        "tp",  # total precipitation
-        "sp",  # surface pressure
-        "msl",  # mean sea level pressure
-        "2d",  # 2m dewpoint temperature (for humidity calculation)
+        # Temperature and humidity
+        "2t",      # 2m temperature
+        "2d",      # 2m dewpoint temperature
+        "skt",     # skin temperature
+        "mx2t3",   # maximum 2m temperature (3h)
+        "mn2t3",   # minimum 2m temperature (3h)
+        # Wind
+        "10u",     # 10m u-wind component
+        "10v",     # 10m v-wind component
+        "10fg",    # 10m wind gust
+        "100u",    # 100m u-wind component
+        "100v",    # 100m v-wind component
+        "ewss",    # eastward wind stress
+        "nsss",    # northward wind stress
+        # Pressure
+        "sp",      # surface pressure
+        "msl",     # mean sea level pressure
+        # Precipitation and water
+        "tp",      # total precipitation
+        "tprate",  # total precipitation rate
+        "ro",      # runoff
+        "tcw",     # total column water
+        "tcwv",    # total column water vapour
+        # Radiation
+        "ssrd",    # surface solar radiation downwards
+        "strd",    # surface thermal radiation downwards
+        "ssr",     # surface solar radiation (net)
+        "str",     # surface thermal radiation (net)
+        "ttr",     # top thermal radiation (outgoing)
+        # Snow and ice
+        "asn",     # snow albedo
+        "sithick", # sea ice thickness
+        "sve",     # snow evaporation
+        "svn",     # snow melt
+        # Convection
+        "mucape",  # maximum updraft CAPE
+        # Geography and surface
+        "z",       # geopotential (surface height)
+        "lsm",     # land-sea mask
+        "sdor",    # standard deviation of orography
+        "slor",    # slope of orography
+        "zos",     # sea surface height
+        "ptype",   # precipitation type
     ]
 
     # Map GRIB parameter names to our variable names
     PARAM_MAP = {
+        # Temperature and humidity
         "2t": "temperature_2m",
+        "2d": "dewpoint_2m",
+        "skt": "skin_temperature",
+        "mx2t3": "maximum_temperature_2m_3h",
+        "mn2t3": "minimum_temperature_2m_3h",
+        # Wind
         "10u": "wind_u_10m",
         "10v": "wind_v_10m",
-        "tp": "total_precipitation",
+        "10fg": "wind_gust_10m",
+        "100u": "wind_u_100m",
+        "100v": "wind_v_100m",
+        "ewss": "eastward_wind_stress",
+        "nsss": "northward_wind_stress",
+        # Pressure
         "sp": "surface_pressure",
         "msl": "mean_sea_level_pressure",
-        "2d": "relative_humidity_2m",  # Will compute from dewpoint if needed
+        # Precipitation and water
+        "tp": "total_precipitation",
+        "tprate": "total_precipitation_rate",
+        "ro": "runoff",
+        "tcw": "total_column_water",
+        "tcwv": "total_column_water_vapour",
+        # Radiation
+        "ssrd": "surface_solar_radiation_downwards",
+        "strd": "surface_thermal_radiation_downwards",
+        "ssr": "surface_solar_radiation_net",
+        "str": "surface_thermal_radiation_net",
+        "ttr": "top_thermal_radiation_outgoing",
+        # Snow and ice
+        "asn": "snow_albedo",
+        "sithick": "sea_ice_thickness",
+        "sve": "snow_evaporation",
+        "svn": "snow_melt",
+        # Convection
+        "mucape": "maximum_updraft_cape",
+        # Geography and surface
+        "z": "geopotential",
+        "lsm": "land_sea_mask",
+        "sdor": "standard_deviation_orography",
+        "slor": "slope_orography",
+        "zos": "sea_surface_height",
+        "ptype": "precipitation_type",
     }
 
     def __init__(self, zarr_store: Path, cache_dir: Path | None = None):
