@@ -1,0 +1,9 @@
+{
+  "long_name": "Lead time",
+  "standard_name": "forecast_period",
+  "dtype": "timedelta64[ns]",
+  "units": "hours",
+  "_ARRAY_DIMENSIONS": [
+    "lead_time"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "_ARRAY_DIMENSIONS": [
+    "init_time",
+    "lead_time",
+    "latitude",
+    "longitude"
+  ]
+}
