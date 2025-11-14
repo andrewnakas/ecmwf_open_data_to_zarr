@@ -75,21 +75,35 @@ def generate_previews(zarr_path: Path, output_dir: Path) -> dict:
         "forecast_hours": int(ds.lead_time.max().values / np.timedelta64(1, "h")),
     }
 
+    print(f"Available variables: {list(latest_ds.data_vars.keys())}")
+
     # Generate temperature map at 24h
-    print("Generating temperature map...")
-    generate_temperature_map(latest_ds, output_dir, metadata)
+    if "temperature_2m" in latest_ds:
+        print("Generating temperature map...")
+        generate_temperature_map(latest_ds, output_dir, metadata)
+    else:
+        print("Skipping temperature map (temperature_2m not available)")
 
     # Generate wind map at 24h
-    print("Generating wind map...")
-    generate_wind_map(latest_ds, output_dir, metadata)
+    if "wind_u_10m" in latest_ds and "wind_v_10m" in latest_ds:
+        print("Generating wind map...")
+        generate_wind_map(latest_ds, output_dir, metadata)
+    else:
+        print("Skipping wind map (wind variables not available)")
 
     # Generate precipitation map
-    print("Generating precipitation map...")
-    generate_precipitation_map(latest_ds, output_dir, metadata)
+    if "total_precipitation" in latest_ds:
+        print("Generating precipitation map...")
+        generate_precipitation_map(latest_ds, output_dir, metadata)
+    else:
+        print("Skipping precipitation map (total_precipitation not available)")
 
     # Generate time series for major cities
-    print("Generating city forecasts...")
-    generate_city_forecasts(latest_ds, output_dir, metadata)
+    if "temperature_2m" in latest_ds:
+        print("Generating city forecasts...")
+        generate_city_forecasts(latest_ds, output_dir, metadata)
+    else:
+        print("Skipping city forecasts (temperature_2m not available)")
 
     # Save metadata
     metadata_path = output_dir / "latest_forecast.json"

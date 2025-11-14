@@ -193,6 +193,33 @@ except KeyError:
 
 ---
 
+### 7. Preview Generation with Missing Variables
+**Problem:** Preview generation crashes when expected variables (temperature_2m, wind_u_10m, etc.) are not present in zarr store.
+
+**Cause:** Old zarr stores may have been created with incomplete data before all fixes were deployed. The preview generation assumed all variables would always be present.
+
+**Fix:** Add graceful handling for missing variables:
+```python
+# Check if variable exists before generating preview
+if "temperature_2m" in latest_ds:
+    print("Generating temperature map...")
+    generate_temperature_map(latest_ds, output_dir, metadata)
+else:
+    print("Skipping temperature map (temperature_2m not available)")
+```
+
+**Benefits:**
+- Preview generation succeeds even with incomplete data
+- Clear logging of what's skipped and why
+- Generates whatever previews are possible with available variables
+- Next data update with fixed code will write all variables correctly
+
+**Note:** Existing zarr stores may need to be regenerated to get all variables. The fixed download/processing code will write complete data going forward.
+
+**File:** `src/reformatters/generate_previews.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing
