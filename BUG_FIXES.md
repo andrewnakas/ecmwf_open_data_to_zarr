@@ -339,6 +339,42 @@ PARAMETERS = [
 
 ---
 
+### 10. Include All 4 Daily ECMWF Forecast Runs
+**Problem:** Only downloading 2 of 4 daily ECMWF forecast runs (00z and 12z), missing the 06z and 18z runs that provide more frequent updates.
+
+**User Request:** "include the shorter range The 06z and 18z runs only have 0-90h forecasts, so they're currently excluded include those runs too"
+
+**Change:** Updated to download all 4 ECMWF forecast runs per day:
+- **00z and 12z:** Long-range forecasts (0-240h, 65 steps)
+- **06z and 18z:** Short-range forecasts (0-90h, 31 steps)
+
+**Implementation:**
+```python
+# Updated run hours to include all 4 runs
+run_hours = [0, 6, 12, 18]  # Previously: [0, 12]
+
+# Separate forecast step lists
+self.forecast_steps_long = list(range(0, 145, 3)) + list(range(150, 241, 6))  # 65 steps
+self.forecast_steps_short = list(range(0, 91, 3))  # 31 steps
+
+def get_forecast_steps(self, run_hour: int) -> list[int]:
+    """Select appropriate steps based on run hour."""
+    if run_hour in [0, 12]:
+        return self.forecast_steps_long  # 0-240h
+    else:
+        return self.forecast_steps_short  # 0-90h (06/18z)
+```
+
+**Benefits:**
+- **4x daily updates** instead of 2x (every 6 hours: 00z, 06z, 12z, 18z)
+- More frequent short-range forecasts for near-term weather
+- Better temporal coverage with rolling 48-hour retention
+- GitHub Actions runs at 05, 11, 17, 23 UTC capture all runs (with data delay accounted for)
+
+**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing

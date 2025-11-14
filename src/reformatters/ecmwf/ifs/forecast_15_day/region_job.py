@@ -60,9 +60,12 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         super().__init__(zarr_store, cache_dir)
         self.client = Client(source="ecmwf")
 
-        # Generate forecast step list for ECMWF Open Data (00/12 UTC runs)
-        # 0-144h every 3 hours, then 150-240h every 6 hours
-        self.forecast_steps = list(range(0, 145, 3)) + list(range(150, 241, 6))
+        # Generate forecast step lists for ECMWF Open Data
+        # Long-range forecasts (00/12 UTC): 0-144h every 3h, then 150-240h every 6h
+        self.forecast_steps_long = list(range(0, 145, 3)) + list(range(150, 241, 6))
+
+        # Short-range forecasts (06/18 UTC): 0-90h every 3h
+        self.forecast_steps_short = list(range(0, 91, 3))
 
     def generate_source_file_coords(
         self, start_time: datetime | None = None, end_time: datetime | None = None
@@ -76,10 +79,10 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         Returns:
             List of source file coordinates
         """
-        # ECMWF runs at 00, 06, 12, 18 UTC
-        # But only 00/12 UTC runs have long-range forecasts (0-240h)
-        # 06/18 UTC runs only have 0-90h
-        run_hours = [0, 12]
+        # ECMWF runs at 00, 06, 12, 18 UTC (4 times per day)
+        # 00/12 UTC runs have long-range forecasts (0-240h)
+        # 06/18 UTC runs have short-range forecasts (0-90h)
+        run_hours = [0, 6, 12, 18]
 
         if start_time is None and end_time is None:
             # Operational mode: get latest AVAILABLE run
@@ -118,6 +121,22 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
 
             return coords
 
+    def get_forecast_steps(self, run_hour: int) -> list[int]:
+        """Get appropriate forecast steps for given run hour.
+
+        Args:
+            run_hour: Model run hour (0, 6, 12, or 18)
+
+        Returns:
+            List of forecast step hours
+        """
+        if run_hour in [0, 12]:
+            # Long-range: 0-240h
+            return self.forecast_steps_long
+        else:
+            # Short-range (06/18 UTC): 0-90h
+            return self.forecast_steps_short
+
     def download_file(self, coord: SourceFileCoord) -> Path:
         """Download GRIB2 file from ECMWF.
 
@@ -137,9 +156,14 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             print(f"  Using cached file: {cache_file}")
             return cache_file
 
+        # Get appropriate forecast steps for this run hour
+        forecast_steps = self.get_forecast_steps(coord.init_time.hour)
+        max_hours = max(forecast_steps)
+        forecast_type = "long-range" if coord.init_time.hour in [0, 12] else "short-range"
+
         print(f"  Downloading forecast from {coord.init_time}")
         print(f"  Parameters: {', '.join(self.PARAMETERS)}")
-        print(f"  Forecast steps: {len(self.forecast_steps)} steps (0-240h)")
+        print(f"  Forecast steps: {len(forecast_steps)} steps (0-{max_hours}h {forecast_type})")
 
         try:
             # Try to download specific date/time first
@@ -148,7 +172,7 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
                 time=coord.init_time.hour,
                 type="fc",  # forecast
                 param=self.PARAMETERS,  # All parameters at once
-                step=self.forecast_steps,  # All forecast lead times
+                step=forecast_steps,  # Forecast lead times for this run
                 target=str(cache_file),
             )
 
@@ -163,10 +187,11 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
 
                 try:
                     # Use client's automatic latest detection (don't specify date/time)
+                    # Use long-range steps - if we get a short-range run, extra steps are ignored
                     result = self.client.retrieve(
                         type="fc",
                         param=self.PARAMETERS,
-                        step=self.forecast_steps,  # All forecast lead times
+                        step=self.forecast_steps_long,  # Request all steps, actual run determines availability
                         target=str(cache_file),
                     )
 
