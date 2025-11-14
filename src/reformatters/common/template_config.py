@@ -85,12 +85,19 @@ class TemplateConfig(ABC):
 
     def generate_template(self) -> xr.Dataset:
         """Generate template xarray Dataset with metadata but no data."""
+        import numpy as np
+
         coords = self.coords()
         data_vars_dict = {}
 
         for var_name, (dims, fill_value) in self.data_vars().items():
             shape = tuple(len(coords[dim]) for dim in dims)
-            data_vars_dict[var_name] = (dims, xr.Variable(dims, data=None).data)
+            # Create array filled with fill_value
+            if np.isnan(fill_value) if isinstance(fill_value, float) else False:
+                data = np.full(shape, np.nan, dtype=np.float32)
+            else:
+                data = np.full(shape, fill_value, dtype=np.float32)
+            data_vars_dict[var_name] = (dims, data)
 
         ds = xr.Dataset(data_vars=data_vars_dict, coords=coords, attrs=self.attrs())
 
