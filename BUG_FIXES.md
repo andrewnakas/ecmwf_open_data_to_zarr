@@ -150,6 +150,36 @@ ds = xr.merge(cleaned_datasets, compat='override')
 
 ---
 
+### 6. Missing init_time Coordinate in Zarr
+**Problem:** `KeyError: "no index found for coordinate 'init_time'"` when generating previews from zarr store.
+
+**Cause:** Variable selection (`ds = ds[available_vars]`) was happening before `expand_dims(init_time=...)`, causing the init_time coordinate to be dropped or not properly indexed.
+
+**Fix:** Reorder operations to ensure init_time coordinate is preserved:
+```python
+# 1. Select variables first
+wanted_vars = list(self.PARAM_MAP.values())
+available_vars = [v for v in wanted_vars if v in ds.data_vars]
+ds = ds[available_vars]
+
+# 2. Then add init_time dimension
+if "init_time" not in ds.coords:
+    ds = ds.expand_dims(init_time=[pd.Timestamp(coord.init_time)])
+
+# 3. Ensure it's indexed
+if "init_time" in ds.dims and "init_time" not in ds.indexes:
+    ds = ds.set_coords("init_time")
+```
+
+**Benefits:**
+- init_time coordinate properly preserved in zarr store
+- Preview generation can select by init_time
+- Consistent coordinate structure
+
+**File:** `src/reformatters/ecmwf/ifs/forecast_15_day/region_job.py`
+
+---
+
 ## Testing Recommendations
 
 ### Local Testing

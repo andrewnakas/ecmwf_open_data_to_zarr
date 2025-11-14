@@ -263,9 +263,18 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
         if var_renames:
             ds = ds.rename(var_renames)
 
-        # Ensure init_time is a coordinate
+        # Select only variables we want (do this early before coordinate processing)
+        wanted_vars = list(self.PARAM_MAP.values())
+        available_vars = [v for v in wanted_vars if v in ds.data_vars]
+        ds = ds[available_vars]
+
+        # Ensure init_time is a coordinate (after variable selection)
         if "init_time" not in ds.coords:
             ds = ds.expand_dims(init_time=[pd.Timestamp(coord.init_time)])
+
+        # Make sure init_time is indexed
+        if "init_time" in ds.dims and "init_time" not in ds.indexes:
+            ds = ds.set_coords("init_time")
 
         # Convert lead_time to timedelta if needed
         if "lead_time" in ds.coords and not np.issubdtype(
@@ -283,11 +292,6 @@ class EcmwfIfsForecast15DayRegionJob(RegionJob):
             if lon.min() < 0:
                 ds = ds.assign_coords(longitude=(ds.longitude % 360))
                 ds = ds.sortby("longitude")
-
-        # Select only variables we want
-        wanted_vars = list(self.PARAM_MAP.values())
-        available_vars = [v for v in wanted_vars if v in ds.data_vars]
-        ds = ds[available_vars]
 
         return ds
 
