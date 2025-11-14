@@ -1,0 +1,16 @@
+{
+  "init_time": "2025-11-13 12:00:00",
+  "init_time_utc": "2025-11-13 12:00 UTC",
+  "generated_at": "2025-11-14 07:37:34 UTC",
+  "variables": [
+    "mean_sea_level_pressure",
+    "surface_pressure",
+    "total_precipitation"
+  ],
+  "dimensions": {
+    "lead_time": 65,
+    "latitude": 721,
+    "longitude": 1440
+  },
+  "forecast_hours": 240
+}

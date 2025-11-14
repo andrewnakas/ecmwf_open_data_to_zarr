@@ -31,6 +31,7 @@
   "standard_name": "air_pressure_at_mean_sea_level",
   "coordinates": "time step meanSea latitude longitude valid_time",
   "_ARRAY_DIMENSIONS": [
+    "lead_time",
     "latitude",
     "longitude"
   ]

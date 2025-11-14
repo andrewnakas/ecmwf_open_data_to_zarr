@@ -5,5 +5,5 @@
   "GRIB_subCentre": 0,
   "Conventions": "CF-1.7",
   "institution": "European Centre for Medium-Range Weather Forecasts",
-  "coordinates": "init_time lead_time"
+  "coordinates": "init_time"
 }

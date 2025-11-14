@@ -1,6 +1,10 @@
 {
-  "shape": [],
-  "chunks": [],
+  "shape": [
+    65
+  ],
+  "chunks": [
+    65
+  ],
   "dtype": "<f8",
   "fill_value": "NaN",
   "order": "C",

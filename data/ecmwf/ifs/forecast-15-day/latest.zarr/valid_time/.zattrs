@@ -3,5 +3,7 @@
   "long_name": "time",
   "units": "seconds since 1970-01-01",
   "calendar": "proleptic_gregorian",
-  "_ARRAY_DIMENSIONS": []
+  "_ARRAY_DIMENSIONS": [
+    "lead_time"
+  ]
 }

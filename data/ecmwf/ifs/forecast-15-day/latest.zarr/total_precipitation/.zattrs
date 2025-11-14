@@ -31,6 +31,7 @@
   "standard_name": "unknown",
   "coordinates": "time step surface latitude longitude valid_time",
   "_ARRAY_DIMENSIONS": [
+    "lead_time",
     "latitude",
     "longitude"
   ]
