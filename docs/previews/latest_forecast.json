@@ -1,7 +1,7 @@
 {
-  "init_time": "2025-11-17 00:00:00",
-  "init_time_utc": "2025-11-17 00:00 UTC",
-  "generated_at": "2025-11-17 17:18:05 UTC",
+  "init_time": "2025-11-17 06:00:00",
+  "init_time_utc": "2025-11-17 06:00 UTC",
+  "generated_at": "2025-11-17 23:15:49 UTC",
   "variables": [
     "dewpoint_2m",
     "mean_sea_level_pressure",
@@ -14,17 +14,17 @@
     "wind_v_10m"
   ],
   "dimensions": {
-    "lead_time": 65,
+    "lead_time": 31,
     "latitude": 721,
     "longitude": 1440
   },
-  "forecast_hours": 240,
+  "forecast_hours": 90,
   "city_temperatures_24h": {
-    "New York": 3.3,
-    "London": 2.0,
-    "Tokyo": 10.6,
-    "Sydney": 19.6,
-    "S\u00e3o Paulo": 20.5,
-    "Mumbai": 18.0
+    "New York": 1.5,
+    "London": 0.7,
+    "Tokyo": 12.3,
+    "Sydney": 20.1,
+    "S\u00e3o Paulo": 19.6,
+    "Mumbai": 29.4
   }
 }
