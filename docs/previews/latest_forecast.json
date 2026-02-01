@@ -1,7 +1,7 @@
 {
   "init_time": "2026-01-31 18:00:00",
   "init_time_utc": "2026-01-31 18:00 UTC",
-  "generated_at": "2026-02-01 06:06:12 UTC",
+  "generated_at": "2026-02-01 11:25:51 UTC",
   "variables": [
     "dewpoint_2m",
     "mean_sea_level_pressure",
