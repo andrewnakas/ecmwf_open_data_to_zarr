@@ -1,7 +1,7 @@
 {
-  "init_time": "2026-02-03 18:00:00",
-  "init_time_utc": "2026-02-03 18:00 UTC",
-  "generated_at": "2026-02-04 11:38:38 UTC",
+  "init_time": "2026-02-04 00:00:00",
+  "init_time_utc": "2026-02-04 00:00 UTC",
+  "generated_at": "2026-02-04 17:55:35 UTC",
   "variables": [
     "dewpoint_2m",
     "mean_sea_level_pressure",
@@ -14,17 +14,17 @@
     "wind_v_10m"
   ],
   "dimensions": {
-    "lead_time": 31,
+    "lead_time": 65,
     "latitude": 721,
     "longitude": 1440
   },
-  "forecast_hours": 90,
+  "forecast_hours": 240,
   "city_temperatures_24h": {
-    "New York": -4.0,
-    "London": 6.7,
-    "Tokyo": 4.3,
-    "Sydney": 21.5,
-    "S\u00e3o Paulo": 26.4,
-    "Mumbai": 25.3
+    "New York": -7.4,
+    "London": 6.9,
+    "Tokyo": 4.8,
+    "Sydney": 24.1,
+    "S\u00e3o Paulo": 20.9,
+    "Mumbai": 22.4
   }
 }
